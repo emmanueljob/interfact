@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import path from "node:path";
-import { readFile, realpath, rename, writeFile } from "node:fs/promises";
+import { open, readFile, realpath, rename, unlink, writeFile } from "node:fs/promises";
+import { setTimeout as delay } from "node:timers/promises";
 
 import { normalizeClientContext, normalizeClientEvent } from "./context.js";
 
@@ -117,11 +118,13 @@ export class SessionStore {
 
   async updateState(fn) {
     const operation = this.mutationQueue.then(async () => {
-      const state = await this.readState();
-      const result = await fn(state);
-      if (result?.[SKIP_WRITE]) return result.value;
-      await this.writeState(state);
-      return result;
+      return withStateFileLock(this.file, async () => {
+        const state = await this.readState();
+        const result = await fn(state);
+        if (result?.[SKIP_WRITE]) return result.value;
+        await this.writeState(state);
+        return result;
+      });
     });
     this.mutationQueue = operation.catch(() => {});
     return operation;
@@ -146,6 +149,33 @@ export function sessionKey(file) {
 function normalizeObject(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return JSON.parse(JSON.stringify(value));
+}
+
+async function withStateFileLock(file, fn) {
+  const lockFile = `${file}.lock`;
+  const lock = await acquireStateFileLock(lockFile);
+  try {
+    return await fn();
+  } finally {
+    try {
+      await lock.close();
+    } finally {
+      await unlink(lockFile).catch((error) => {
+        if (error?.code !== "ENOENT") throw error;
+      });
+    }
+  }
+}
+
+async function acquireStateFileLock(lockFile) {
+  for (;;) {
+    try {
+      return await open(lockFile, "wx");
+    } catch (error) {
+      if (error?.code !== "EEXIST") throw error;
+      await delay(10);
+    }
+  }
 }
 
 function skipWrite(value) {

@@ -18,8 +18,8 @@ export function normalizeClientContext(context) {
     title: String(context?.title || ""),
     artifactKind: String(context?.artifactKind || ""),
     changedEntities: normalizeArray(context?.changedEntities, 20).map((entity) => ({
-      id: String(entity?.id || ""),
-      label: String(entity?.label || ""),
+      id: String(entity?.id ?? ""),
+      label: String(entity?.label ?? ""),
       state: clonePlainObject(entity?.state || {})
     })),
     visibleState: clonePlainObject(context?.visibleState || {}),

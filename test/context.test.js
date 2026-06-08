@@ -32,3 +32,12 @@ test("normalizeClientContext bounds outline and changed entities", () => {
   assert.equal(context.changedEntities.length, 20);
   assert.equal(context.outline.length, 50);
 });
+
+test("normalizeClientContext preserves falsy changed entity scalar fields", () => {
+  const context = normalizeClientContext({
+    changedEntities: [{ id: 0, label: false }]
+  });
+
+  assert.equal(context.changedEntities[0].id, "0");
+  assert.equal(context.changedEntities[0].label, "false");
+});

@@ -95,6 +95,43 @@ test("concurrent queueFeedback calls preserve all events and chat messages", asy
   assert.deepEqual(chatMessages, ["Select row 2", "Use the P1 filter"]);
 });
 
+test("concurrent queueFeedback calls across store instances preserve all events and chat messages", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "interfact-store-"));
+  const artifact = path.join(dir, "artifact.html");
+  const stateFile = path.join(dir, "state.json");
+  await writeFile(artifact, "<!doctype html>");
+  const setupStore = new SessionStore(stateFile);
+  const session = await setupStore.upsertSession(artifact, "http://127.0.0.1:4397/session/key");
+  const firstStore = new SessionStore(stateFile);
+  const secondStore = new SessionStore(stateFile);
+
+  await Promise.all([
+    firstStore.queueFeedback(session.key, {
+      events: [{ type: "filters.changed", data: { priority: "P1" } }],
+      message: "Use the P1 filter"
+    }),
+    secondStore.queueFeedback(session.key, {
+      events: [{ type: "selection.changed", data: { id: "row-2" } }],
+      message: "Select row 2"
+    })
+  ]);
+
+  const rawState = await readFile(stateFile, "utf8");
+  const state = JSON.parse(rawState);
+  const storedSession = state.sessions[session.key];
+  assert.deepEqual(
+    storedSession.events.map((event) => event.type).sort(),
+    ["filters.changed", "selection.changed"]
+  );
+  assert.deepEqual(
+    storedSession.chat
+      .filter((entry) => entry.role === "user")
+      .map((entry) => entry.text)
+      .sort(),
+    ["Select row 2", "Use the P1 filter"]
+  );
+});
+
 test("reply and end update session state", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "interfact-store-"));
   const artifact = path.join(dir, "artifact.html");
