@@ -39,3 +39,12 @@ window.interfact.emit({
   patch: { priority: "P1" }
 });
 ```
+
+## Try the Example
+
+```bash
+npm install
+npx playwright install chromium
+node src/cli.js open examples/triage.html
+node src/cli.js poll examples/triage.html
+```

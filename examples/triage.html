@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en" data-interfact-kind="triage-board">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Interfact Triage Example</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f6f7f9;
+        color: #18202a;
+      }
+
+      body {
+        margin: 0;
+        padding: 32px;
+      }
+
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin: 0 0 24px;
+        font-size: 28px;
+        line-height: 1.2;
+      }
+
+      form,
+      article {
+        background: #ffffff;
+        border: 1px solid #d8dde6;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 1px 2px rgba(24, 32, 42, 0.06);
+      }
+
+      form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: end;
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        font-weight: 600;
+      }
+
+      select,
+      button {
+        min-height: 36px;
+        border-radius: 6px;
+        font: inherit;
+      }
+
+      select {
+        border: 1px solid #b9c2cf;
+        padding: 0 10px;
+        background: #ffffff;
+      }
+
+      button {
+        border: 1px solid #1f6feb;
+        padding: 0 14px;
+        background: #1f6feb;
+        color: #ffffff;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        border-color: #6b7280;
+        background: #ffffff;
+        color: #18202a;
+      }
+
+      article h2 {
+        margin: 0 0 8px;
+        font-size: 20px;
+      }
+
+      article p {
+        margin: 0 0 16px;
+        color: #4b5563;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 data-interfact-section="Triage Queue">Triage Queue</h1>
+
+      <form data-interfact-event="filters.changed" data-interfact-label="Triage filters">
+        <label>
+          Priority
+          <select name="priority">
+            <option value="all">All</option>
+            <option value="P1">P1</option>
+            <option value="P2">P2</option>
+          </select>
+        </label>
+        <button type="submit">Queue filter change</button>
+      </form>
+
+      <article
+        data-interfact-entity-id="MOJO-123"
+        data-interfact-label="MOJO-123: Workflow create loops forever"
+      >
+        <h2>MOJO-123: Workflow create loops forever</h2>
+        <p>Current priority: P2. Owner: Workflow Automation.</p>
+        <div class="actions">
+          <button
+            type="button"
+            data-interfact-action="issue.approved"
+            data-interfact-entity-id="MOJO-123"
+            data-interfact-label="MOJO-123: Workflow create loops forever"
+          >
+            Approve issue
+          </button>
+          <button
+            class="secondary"
+            type="button"
+            onclick='window.interfact.emit({ type:"decision.changed", entityId:"MOJO-123", label:"MOJO-123: Workflow create loops forever", patch:{priority:"P1"} })'
+          >
+            Escalate to P1
+          </button>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>
