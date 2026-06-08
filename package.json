@@ -2,7 +2,10 @@
   "name": "interfact",
   "version": "0.1.0",
   "description": "Interactive artifact interface for agents.",
+  "license": "MIT",
+  "keywords": ["agents", "artifacts", "html", "cli", "human-in-the-loop"],
   "type": "module",
+  "files": ["src", "skills", "examples", "README.md"],
   "bin": {
     "interfact": "./src/cli.js"
   },

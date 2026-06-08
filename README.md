@@ -48,3 +48,11 @@ npx playwright install chromium
 node src/cli.js open examples/triage.html
 node src/cli.js poll examples/triage.html
 ```
+
+## V0 Limits
+
+- The agent generates and edits the HTML artifact.
+- Interfact does not stream events while the user edits.
+- Interfact does not push state directly into the artifact from the agent.
+- The HTML file is the durable artifact state.
+- The shell owns Send to Agent.
