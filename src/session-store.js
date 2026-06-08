@@ -117,8 +117,7 @@ export class SessionStore {
 
 export async function canonicalFile(file) {
   const absolute = path.resolve(file);
-  await realpath(absolute);
-  return absolute;
+  return realpath(absolute);
 }
 
 export function sessionKey(file) {
