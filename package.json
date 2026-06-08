@@ -1,0 +1,26 @@
+{
+  "name": "interfact",
+  "version": "0.1.0",
+  "description": "Interactive artifact interface for agents.",
+  "type": "module",
+  "bin": {
+    "interfact": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:smoke": "playwright test test/smoke.spec.js",
+    "check": "npm test && npm run test:smoke"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.3",
+    "express": "^4.19.2",
+    "open": "^10.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.3",
+    "supertest": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
