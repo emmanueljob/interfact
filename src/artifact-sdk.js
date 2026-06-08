@@ -104,11 +104,12 @@ export function createArtifactSdk() {
     const form = event.target?.closest?.("form[data-interfact-event]");
     if (!form) return;
     event.preventDefault();
+    const entity = form.closest("[data-interfact-entity-id]");
     emitEvent({
       source: "form",
       type: form.getAttribute("data-interfact-event") || "",
-      entityId: form.getAttribute("data-interfact-entity-id") || undefined,
-      label: form.getAttribute("data-interfact-label") || undefined,
+      entityId: form.getAttribute("data-interfact-entity-id") || entity?.getAttribute("data-interfact-entity-id") || undefined,
+      label: form.getAttribute("data-interfact-label") || entity?.getAttribute("data-interfact-label") || undefined,
       data: formDataObject(form)
     }, form);
   });

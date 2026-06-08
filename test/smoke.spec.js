@@ -177,6 +177,77 @@ test("includes changed entity form state in submitted context", async ({ page, r
   }
 });
 
+test("batches changed entity contexts for multiple queued forms", async ({ page, request }) => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "interfact-smoke-"));
+  const artifact = path.join(dir, "artifact.html");
+  await writeFile(
+    artifact,
+    `<!doctype html>
+<html>
+  <head><title>Batched Entities</title></head>
+  <body>
+    <section data-interfact-entity-id="MOJO-123" data-interfact-label="Reload bug">
+      <form data-interfact-event="issue.changed">
+        <input name="priority" value="P0">
+        <button type="submit">Queue reload change</button>
+      </form>
+    </section>
+    <section data-interfact-entity-id="MOJO-456" data-interfact-label="Reply bug">
+      <form data-interfact-event="issue.changed">
+        <input name="owner" value="Eman">
+        <button type="submit">Queue reply change</button>
+      </form>
+    </section>
+  </body>
+</html>
+`,
+    "utf8"
+  );
+
+  const { server, baseURL } = await startTestServer(dir);
+
+  try {
+    const sessionResponse = await request.post(`${baseURL}/api/sessions`, {
+      data: { file: artifact }
+    });
+    expect(sessionResponse.ok()).toBe(true);
+    const session = await sessionResponse.json();
+
+    await page.goto(session.url);
+    const frame = page.frameLocator("#artifact");
+    await frame.getByRole("button", { name: "Queue reload change" }).click();
+    await frame.getByRole("button", { name: "Queue reply change" }).click();
+    await page.getByRole("button", { name: "Send to Agent" }).click();
+
+    const pollResponse = await request.get(`${baseURL}/api/poll`, {
+      params: { file: artifact, timeoutMs: "10" }
+    });
+    expect(pollResponse.ok()).toBe(true);
+    const feedback = await pollResponse.json();
+
+    expect(feedback.events).toEqual([
+      expect.objectContaining({
+        type: "issue.changed",
+        entityId: "MOJO-123",
+        label: "Reload bug",
+        data: { priority: "P0" }
+      }),
+      expect.objectContaining({
+        type: "issue.changed",
+        entityId: "MOJO-456",
+        label: "Reply bug",
+        data: { owner: "Eman" }
+      })
+    ]);
+    expect(feedback.context.changedEntities).toEqual([
+      { id: "MOJO-123", label: "Reload bug", state: { priority: "P0" } },
+      { id: "MOJO-456", label: "Reply bug", state: { owner: "Eman" } }
+    ]);
+  } finally {
+    await closeServer(server);
+  }
+});
+
 function artifactHtml(title, body) {
   return `<!doctype html>
 <html>

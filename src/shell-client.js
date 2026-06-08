@@ -8,7 +8,7 @@
   const messageInput = messageForm?.querySelector('textarea[name="message"]');
   const endButton = document.querySelector("#end");
   const queued = [];
-  let lastContext = {};
+  let queuedContext = {};
   const chat = Array.isArray(session.chat) ? [...session.chat] : [];
 
   window.addEventListener("message", (event) => {
@@ -16,7 +16,7 @@
     if (event.data?.type !== "interfact:events") return;
 
     if (Array.isArray(event.data.events)) queued.push(...event.data.events);
-    lastContext = event.data.context || {};
+    queuedContext = mergeContext(queuedContext, event.data.context || {});
     renderQueue();
   });
 
@@ -26,10 +26,11 @@
     const response = await fetch(`/api/${encodeURIComponent(session.key)}/feedback`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ events: queued, message, context: lastContext })
+      body: JSON.stringify({ events: queued, message, context: queuedContext })
     });
     if (!response.ok) return;
     queued.splice(0, queued.length);
+    queuedContext = {};
     if (messageInput) messageInput.value = "";
     renderQueue();
   });
@@ -85,6 +86,34 @@
     } catch {
       return {};
     }
+  }
+
+  function mergeContext(current, next) {
+    return {
+      title: next.title || current.title || "",
+      artifactKind: next.artifactKind || current.artifactKind || "",
+      changedEntities: mergeChangedEntities(current.changedEntities, next.changedEntities),
+      visibleState: { ...(current.visibleState || {}), ...(next.visibleState || {}) },
+      outline: Array.isArray(next.outline) && next.outline.length ? next.outline : current.outline || []
+    };
+  }
+
+  function mergeChangedEntities(current, next) {
+    const merged = new Map();
+    for (const entity of [...safeArray(current), ...safeArray(next)]) {
+      if (!entity?.id) continue;
+      const existing = merged.get(String(entity.id)) || {};
+      merged.set(String(entity.id), {
+        id: String(entity.id),
+        label: entity.label || existing.label || "",
+        state: { ...(existing.state || {}), ...(entity.state || {}) }
+      });
+    }
+    return Array.from(merged.values());
+  }
+
+  function safeArray(value) {
+    return Array.isArray(value) ? value : [];
   }
 
   function escapeHtml(value) {
