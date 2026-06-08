@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { readFile, realpath, rename, writeFile } from "node:fs/promises";
 
+import { normalizeClientContext, normalizeClientEvent } from "./context.js";
+
 const SKIP_WRITE = Symbol("skipWrite");
 
 export class SessionStore {
@@ -46,10 +48,10 @@ export class SessionStore {
     return this.updateState((state) => {
       const session = state.sessions[key];
       if (!session) return null;
-      const events = Array.isArray(payload.events) ? payload.events.map(normalizeEvent) : [];
+      const events = Array.isArray(payload.events) ? payload.events.map(normalizeClientEvent) : [];
       session.events = [...(session.events || []), ...events];
       session.message = String(payload.message || "");
-      session.context = normalizeObject(payload.context);
+      session.context = normalizeClientContext(payload.context);
       session.pending_events = session.events.length;
       session.status = "feedback";
       session.updated_at = new Date().toISOString();
@@ -139,21 +141,6 @@ export async function canonicalFile(file) {
 
 export function sessionKey(file) {
   return crypto.createHash("sha256").update(file).digest("hex").slice(0, 16);
-}
-
-function normalizeEvent(event) {
-  const normalized = {
-    type: String(event.type || ""),
-    source: String(event.source || "unknown"),
-    at: String(event.at || new Date().toISOString())
-  };
-  for (const key of ["entityId", "label", "action"]) {
-    if (event[key] !== undefined) normalized[key] = String(event[key]);
-  }
-  for (const key of ["data", "patch", "target"]) {
-    if (event[key] !== undefined) normalized[key] = normalizeObject(event[key]);
-  }
-  return normalized;
 }
 
 function normalizeObject(value) {
