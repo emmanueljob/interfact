@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { realpathSync } from "node:fs";
 import { access } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -213,9 +214,14 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isCliEntrypoint()) {
   main().catch((error) => {
     process.stderr.write(`${JSON.stringify({ error: error?.message || String(error) })}\n`);
     process.exitCode = 1;
   });
+}
+
+function isCliEntrypoint() {
+  if (!process.argv[1]) return false;
+  return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
 }
