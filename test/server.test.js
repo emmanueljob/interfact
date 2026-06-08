@@ -26,6 +26,16 @@ test("POST /api/sessions opens an artifact session", async () => {
   assert.equal(response.body.status, "opened");
 });
 
+test("artifact index includes the Interfact SDK script", async () => {
+  const { dir, file } = await createArtifact();
+  const app = createApp({ stateFilePath: stateFile(dir), publicPort: 4397 });
+  const opened = await request(app).post("/api/sessions").send({ file }).expect(200);
+
+  const response = await request(app).get(`/artifact/${opened.body.key}/index.html`).expect(200);
+
+  assert.match(response.text, /<script src="\/sdk\.js\?key=/);
+});
+
 test("poll returns queued feedback with normalized context", async () => {
   const { dir, file } = await createArtifact();
   const app = createApp({ stateFilePath: stateFile(dir), publicPort: 4397 });

@@ -4,6 +4,8 @@ import path from "node:path";
 
 import express from "express";
 
+import { createArtifactSdk } from "./artifact-sdk.js";
+import { injectInterfactSdk } from "./html-transform.js";
 import { LOOPBACK_HOST, stateFile } from "./paths.js";
 import { canonicalFile, SessionStore, sessionKey } from "./session-store.js";
 
@@ -147,6 +149,26 @@ export function createApp({ stateFilePath = stateFile(), publicPort = 4397 } = {
     }
   });
 
+  app.get("/sdk.js", (req, res) => {
+    res.type("application/javascript").send(`(${createArtifactSdk.toString()})();`);
+  });
+
+  app.get("/shell-client.js", async (req, res, next) => {
+    try {
+      res.type("application/javascript").send(await readFile(new URL("./shell-client.js", import.meta.url), "utf8"));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/shell.css", async (req, res, next) => {
+    try {
+      res.type("text/css").send(await readFile(new URL("./shell.css", import.meta.url), "utf8"));
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.get("/artifact/:key/index.html", async (req, res, next) => {
     try {
       const session = await store.findByKey(req.params.key);
@@ -154,7 +176,8 @@ export function createApp({ stateFilePath = stateFile(), publicPort = 4397 } = {
         res.status(404).send("Session not found");
         return;
       }
-      res.type("html").send(await readFile(session.file, "utf8"));
+      const html = await readFile(session.file, "utf8");
+      res.type("html").send(injectInterfactSdk(html, session.key));
     } catch (error) {
       next(error);
     }
@@ -220,6 +243,8 @@ export function createShellHtml(session) {
   <head>
     <meta charset="utf-8">
     <title>Interfact</title>
+    <link rel="stylesheet" href="/shell.css">
+    <script src="/shell-client.js" defer></script>
   </head>
   <body>
     <iframe id="artifact" src="/artifact/${encodeURIComponent(session.key)}/index.html"></iframe>
