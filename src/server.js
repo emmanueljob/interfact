@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import { mkdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 
+import chokidar from "chokidar";
 import express from "express";
 
 import { createArtifactSdk } from "./artifact-sdk.js";
@@ -14,6 +15,8 @@ export function createApp({ stateFilePath = stateFile(), publicPort = 4397 } = {
   const store = new SessionStore(stateFilePath);
   const events = new EventEmitter();
   const activePolls = new Map();
+  const eventClients = new Map();
+  const artifactWatchers = new Map();
 
   events.setMaxListeners(0);
   app.use(express.json({ limit: "2mb" }));
@@ -29,6 +32,7 @@ export function createApp({ stateFilePath = stateFile(), publicPort = 4397 } = {
       const url = `http://${LOOPBACK_HOST}:${publicPort}/session/${key}`;
       await ensureStateParent(stateFilePath);
       const session = await store.upsertSession(file, url);
+      await watchArtifact(session, artifactWatchers, eventClients);
       res.json({
         key,
         file: session.file,
@@ -115,8 +119,41 @@ export function createApp({ stateFilePath = stateFile(), publicPort = 4397 } = {
         res.status(404).json({ error: "session not found" });
         return;
       }
-      events.emit(`reply:${req.params.key}`);
+      const reply = session.chat?.at(-1) || null;
+      sendSessionEvent(eventClients, req.params.key, "reply", { reply });
       res.json({ status: "sent" });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/:key/events", async (req, res, next) => {
+    try {
+      const session = await store.findByKey(req.params.key);
+      if (!session) {
+        res.status(404).end();
+        return;
+      }
+      await watchArtifact(session, artifactWatchers, eventClients);
+
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache, no-transform",
+        connection: "keep-alive",
+        "x-accel-buffering": "no"
+      });
+      res.write(": connected\n\n");
+
+      const clients = eventClients.get(req.params.key) || new Set();
+      clients.add(res);
+      eventClients.set(req.params.key, clients);
+
+      const cleanup = () => {
+        clients.delete(res);
+        if (!clients.size) eventClients.delete(req.params.key);
+      };
+      req.once("close", cleanup);
+      req.once("aborted", cleanup);
     } catch (error) {
       next(error);
     }
@@ -130,6 +167,7 @@ export function createApp({ stateFilePath = stateFile(), publicPort = 4397 } = {
         return;
       }
       events.emit(`ended:${req.params.key}`);
+      await unwatchArtifact(req.params.key, artifactWatchers);
       res.json({ status: "ended" });
     } catch (error) {
       next(error);
@@ -250,6 +288,7 @@ export function createShellHtml(session) {
     <iframe id="artifact" src="/artifact/${encodeURIComponent(session.key)}/index.html"></iframe>
     <aside>
       <section id="presence">Connected</section>
+      <section id="chat" aria-label="Chat"></section>
       <section id="queue"></section>
       <form id="message">
         <textarea name="message"></textarea>
@@ -260,6 +299,41 @@ export function createShellHtml(session) {
     <script id="interfact-session" type="application/json">${sessionJson}</script>
   </body>
 </html>`;
+}
+
+async function watchArtifact(session, artifactWatchers, eventClients) {
+  if (artifactWatchers.has(session.key)) return;
+
+  const watcher = chokidar.watch(session.file, {
+    ignoreInitial: true,
+    persistent: false
+  });
+  const entry = { watcher };
+  artifactWatchers.set(session.key, entry);
+
+  watcher.on("change", () => {
+    sendSessionEvent(eventClients, session.key, "reload", { at: new Date().toISOString() });
+  });
+  watcher.once("error", () => {
+    artifactWatchers.delete(session.key);
+  });
+}
+
+async function unwatchArtifact(key, artifactWatchers) {
+  const entry = artifactWatchers.get(key);
+  if (!entry) return;
+  artifactWatchers.delete(key);
+  await entry.watcher.close();
+}
+
+function sendSessionEvent(eventClients, key, type, payload = {}) {
+  const clients = eventClients.get(key);
+  if (!clients?.size) return;
+  const data = JSON.stringify(payload).replace(/\u2028|\u2029/g, "");
+  for (const client of clients) {
+    client.write(`event: ${type}\n`);
+    client.write(`data: ${data}\n\n`);
+  }
 }
 
 export function withNextStep(file, response) {

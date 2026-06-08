@@ -1,7 +1,7 @@
 export function createArtifactSdk() {
   const queued = [];
 
-  function snapshot() {
+  function snapshot(sourceElement, eventData) {
     const root = document.documentElement;
     const body = document.body;
     const artifactKind = root?.getAttribute("data-interfact-kind") || body?.getAttribute("data-interfact-kind") || "";
@@ -13,17 +13,21 @@ export function createArtifactSdk() {
     return {
       title: document.title || "",
       artifactKind,
-      changedEntities: [],
+      changedEntities: changedEntity(sourceElement, eventData),
       visibleState: {},
       outline
     };
   }
 
   function emit(event) {
+    return emitEvent(event);
+  }
+
+  function emitEvent(event, sourceElement) {
     const normalized = normalizeEvent(event);
     queued.push(normalized);
     window.parent?.postMessage(
-      { type: "interfact:events", events: [normalized], context: snapshot() },
+      { type: "interfact:events", events: [normalized], context: snapshot(sourceElement, normalized) },
       "*"
     );
     return normalized;
@@ -37,6 +41,34 @@ export function createArtifactSdk() {
       source: String(value.source || "sdk"),
       at: String(value.at || new Date().toISOString())
     };
+  }
+
+  function changedEntity(sourceElement, eventData) {
+    const element = sourceElement?.closest?.("[data-interfact-entity-id]");
+    const id = eventData?.entityId ?? element?.getAttribute("data-interfact-entity-id");
+    if (id === undefined || id === null || id === "") return [];
+
+    const label =
+      eventData?.label ??
+      element?.getAttribute("data-interfact-label") ??
+      normalizeText(element?.textContent || "");
+    return [
+      {
+        id: String(id),
+        label: String(label || ""),
+        state: changedEntityState(sourceElement, eventData)
+      }
+    ];
+  }
+
+  function changedEntityState(sourceElement, eventData) {
+    if (isPlainObject(eventData?.patch)) return eventData.patch;
+    if (sourceElement?.matches?.("form") && isPlainObject(eventData?.data)) return eventData.data;
+    return {};
+  }
+
+  function isPlainObject(value) {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
   }
 
   function outlineLabel(element) {
@@ -72,26 +104,26 @@ export function createArtifactSdk() {
     const form = event.target?.closest?.("form[data-interfact-event]");
     if (!form) return;
     event.preventDefault();
-    emit({
+    emitEvent({
       source: "form",
       type: form.getAttribute("data-interfact-event") || "",
       entityId: form.getAttribute("data-interfact-entity-id") || undefined,
       label: form.getAttribute("data-interfact-label") || undefined,
       data: formDataObject(form)
-    });
+    }, form);
   });
 
   document.addEventListener("click", (event) => {
     const action = event.target?.closest?.("[data-interfact-action]");
     if (!action) return;
     const actionType = action.getAttribute("data-interfact-action") || "";
-    emit({
+    emitEvent({
       source: "action",
       type: actionType,
       action: actionType,
       entityId: action.getAttribute("data-interfact-entity-id") || undefined,
       label: action.getAttribute("data-interfact-label") || normalizeText(action.textContent || "") || undefined
-    });
+    }, action);
   });
 
   window.interfact = { emit, snapshot };
