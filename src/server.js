@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 
 import express from "express";
@@ -22,7 +22,7 @@ export function createApp({ stateFilePath = stateFile(), publicPort = 4397 } = {
 
   app.post("/api/sessions", async (req, res, next) => {
     try {
-      const file = await canonicalFile(req.body?.file || "");
+      const file = await canonicalRequestFile(req.body?.file);
       const key = sessionKey(file);
       const url = `http://${LOOPBACK_HOST}:${publicPort}/session/${key}`;
       await ensureStateParent(stateFilePath);
@@ -35,13 +35,14 @@ export function createApp({ stateFilePath = stateFile(), publicPort = 4397 } = {
         pending_events: session.pending_events || 0
       });
     } catch (error) {
+      if (sendFileNotFound(error, res)) return;
       next(error);
     }
   });
 
   app.get("/api/poll", async (req, res, next) => {
     try {
-      const file = await canonicalFile(String(req.query.file || ""));
+      const file = await canonicalRequestFile(req.query.file);
       const key = sessionKey(file);
       const immediate = await store.takeFeedback(key);
       if (immediate.status !== "waiting") {
@@ -51,12 +52,17 @@ export function createApp({ stateFilePath = stateFile(), publicPort = 4397 } = {
 
       const timeoutMs = parseTimeoutMs(req.query.timeoutMs);
       activePolls.set(key, (activePolls.get(key) || 0) + 1);
+      let finished = false;
 
       const finish = async () => {
+        if (finished || res.destroyed) return;
+        finished = true;
         cleanup();
         try {
+          if (res.writableEnded || res.destroyed) return;
           res.json(withNextStep(file, await store.takeFeedback(key)));
         } catch (error) {
+          if (res.destroyed) return;
           next(error);
         }
       };
@@ -64,14 +70,24 @@ export function createApp({ stateFilePath = stateFile(), publicPort = 4397 } = {
         clearTimeout(timer);
         events.off(`feedback:${key}`, finish);
         events.off(`ended:${key}`, finish);
+        req.off("close", onClose);
+        req.off("aborted", onClose);
         const count = (activePolls.get(key) || 1) - 1;
         if (count > 0) activePolls.set(key, count);
         else activePolls.delete(key);
       };
+      const onClose = () => {
+        if (finished) return;
+        finished = true;
+        cleanup();
+      };
       const timer = setTimeout(finish, timeoutMs);
       events.once(`feedback:${key}`, finish);
       events.once(`ended:${key}`, finish);
+      req.once("close", onClose);
+      req.once("aborted", onClose);
     } catch (error) {
+      if (sendFileNotFound(error, res)) return;
       next(error);
     }
   });
@@ -157,7 +173,22 @@ export function createApp({ stateFilePath = stateFile(), publicPort = 4397 } = {
         res.status(403).send("Forbidden");
         return;
       }
-      res.sendFile(assetPath);
+      let rootReal;
+      let assetReal;
+      try {
+        [rootReal, assetReal] = await Promise.all([realpath(root), realpath(assetPath)]);
+      } catch (error) {
+        if (error?.code === "ENOENT") {
+          res.status(404).send("Not found");
+          return;
+        }
+        throw error;
+      }
+      if (!isPathInside(rootReal, assetReal)) {
+        res.status(403).send("Forbidden");
+        return;
+      }
+      res.sendFile(assetReal);
     } catch (error) {
       next(error);
     }
@@ -233,4 +264,31 @@ function isPathInside(root, target) {
 
 async function ensureStateParent(file) {
   await mkdir(path.dirname(file), { recursive: true });
+}
+
+async function canonicalRequestFile(file) {
+  if (typeof file !== "string" || file.trim() === "") {
+    throw fileNotFoundError();
+  }
+
+  try {
+    return await canonicalFile(file);
+  } catch (error) {
+    if (error?.code === "ENOENT" || error?.code === "ENOTDIR") {
+      throw fileNotFoundError();
+    }
+    throw error;
+  }
+}
+
+function fileNotFoundError() {
+  const error = new Error("file not found");
+  error.status = 400;
+  return error;
+}
+
+function sendFileNotFound(error, res) {
+  if (error?.status !== 400 || error?.message !== "file not found") return false;
+  res.status(400).json({ error: "file not found" });
+  return true;
 }
