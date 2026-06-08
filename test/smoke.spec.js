@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { mkdtemp, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 
@@ -36,18 +37,15 @@ test("queues artifact events and sends them to the agent", async ({ page, reques
     "utf8"
   );
 
-  const server = await new Promise((resolve, reject) => {
-    const app = createApp({ stateFilePath: stateFile(dir), publicPort: 5497 });
-    const listener = app.listen(5497, "127.0.0.1", () => resolve(listener));
-    listener.once("error", reject);
-  });
+  const { server, baseURL } = await startTestServer(dir);
 
   try {
-    const sessionResponse = await request.post("http://127.0.0.1:5497/api/sessions", {
+    const sessionResponse = await request.post(`${baseURL}/api/sessions`, {
       data: { file: artifact }
     });
     expect(sessionResponse.ok()).toBe(true);
     const session = await sessionResponse.json();
+    expect(session.url.startsWith(`${baseURL}/session/`)).toBe(true);
 
     await page.goto(session.url);
     const frame = page.frameLocator("#artifact");
@@ -57,7 +55,7 @@ test("queues artifact events and sends them to the agent", async ({ page, reques
     await expect(page.locator("#queue li")).toHaveCount(2);
     await page.getByRole("button", { name: "Send to Agent" }).click();
 
-    const pollResponse = await request.get("http://127.0.0.1:5497/api/poll", {
+    const pollResponse = await request.get(`${baseURL}/api/poll`, {
       params: { file: artifact, timeoutMs: "10" }
     });
     expect(pollResponse.ok()).toBe(true);
@@ -67,8 +65,25 @@ test("queues artifact events and sends them to the agent", async ({ page, reques
     expect(feedback.events.map((event) => event.type)).toEqual(["filters.changed", "item.approved"]);
     expect(feedback.context.title).toBe("Smoke Artifact");
   } finally {
-    await new Promise((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
+    await closeServer(server);
   }
 });
+
+async function startTestServer(dir) {
+  let app;
+  const server = await new Promise((resolve, reject) => {
+    const listener = createServer((req, res) => app(req, res));
+    listener.once("error", reject);
+    listener.listen(0, "127.0.0.1", () => resolve(listener));
+  });
+
+  const { port } = server.address();
+  app = createApp({ stateFilePath: stateFile(dir), publicPort: port });
+  return { server, baseURL: `http://127.0.0.1:${port}` };
+}
+
+async function closeServer(server) {
+  await new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}
