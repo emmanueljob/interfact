@@ -253,7 +253,7 @@ export function createShellHtml(session) {
       <section id="queue"></section>
       <form id="message">
         <textarea name="message"></textarea>
-        <button type="submit">Send</button>
+        <button type="submit">Send to Agent</button>
       </form>
       <button id="end" type="button">End</button>
     </aside>
