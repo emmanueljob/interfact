@@ -23,12 +23,12 @@ test("normalizeClientContext bounds outline and changed entities", () => {
   const context = normalizeClientContext({
     title: "Mojo Triage",
     artifactKind: "triage-board",
-    changedEntities: Array.from({ length: 10 }, (_, index) => ({ id: `MOJO-${index}`, label: `Issue ${index}` })),
+    changedEntities: Array.from({ length: 25 }, (_, index) => ({ id: `MOJO-${index}`, label: `Issue ${index}` })),
     outline: Array.from({ length: 80 }, (_, index) => `row ${index}`)
   });
 
   assert.equal(context.title, "Mojo Triage");
   assert.equal(context.artifactKind, "triage-board");
-  assert.equal(context.changedEntities.length, 10);
+  assert.equal(context.changedEntities.length, 20);
   assert.equal(context.outline.length, 50);
 });
