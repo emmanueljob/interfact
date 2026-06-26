@@ -49,6 +49,10 @@ node src/cli.js open examples/triage.html
 node src/cli.js poll examples/triage.html
 ```
 
+## Agent Skill
+
+Interfact ships with a drop-in agent skill at [`skills/interfact/SKILL.md`](skills/interfact/SKILL.md). It teaches any coding agent when to reach for Interfact, how to set it up, the `open → poll → act → end` loop, and how to author compatible HTML artifacts. Point your agent at it (Claude Code reads it as a skill; other tools can read it as plain instructions).
+
 ## V0 Limits
 
 - The agent generates and edits the HTML artifact.
@@ -56,3 +60,7 @@ node src/cli.js poll examples/triage.html
 - Interfact does not push state directly into the artifact from the agent.
 - The HTML file is the durable artifact state.
 - The shell owns Send to Agent.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
