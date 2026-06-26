@@ -104,8 +104,8 @@ Action example:
 ```html
 <button
   data-interfact-action="issue.approved"
-  data-interfact-entity-id="MOJO-123"
-  data-interfact-label="MOJO-123: Workflow create loops forever">
+  data-interfact-entity-id="TASK-101"
+  data-interfact-label="TASK-101: Workflow create loops forever">
   Approve
 </button>
 ```
@@ -114,8 +114,8 @@ Entity container example:
 
 ```html
 <article
-  data-interfact-entity-id="MOJO-123"
-  data-interfact-label="MOJO-123: Workflow create loops forever">
+  data-interfact-entity-id="TASK-101"
+  data-interfact-label="TASK-101: Workflow create loops forever">
   <h2>Workflow create loops forever</h2>
   <select name="priority">
     <option value="P1">P1</option>
@@ -131,9 +131,9 @@ For richer interactions, artifacts can call the injected SDK.
 ```js
 window.interfact.emit({
   type: "decision.changed",
-  entityId: "MOJO-123",
-  label: "MOJO-123: Workflow create loops forever",
-  patch: { priority: "P1", owner: "Evan" }
+  entityId: "TASK-101",
+  label: "TASK-101: Workflow create loops forever",
+  patch: { priority: "P1", owner: "Alex" }
 });
 ```
 
@@ -156,27 +156,27 @@ Example:
   "events": [
     {
       "type": "decision.changed",
-      "entityId": "MOJO-123",
-      "label": "MOJO-123: Workflow create loops forever",
+      "entityId": "TASK-101",
+      "label": "TASK-101: Workflow create loops forever",
       "source": "sdk",
       "patch": {
         "priority": "P1",
-        "owner": "Evan"
+        "owner": "Alex"
       },
       "at": "2026-06-08T12:00:00.000Z"
     }
   ],
   "message": "I think this should be P1.",
   "context": {
-    "title": "Mojo Jira Triage",
+    "title": "Issue Triage",
     "artifactKind": "triage-board",
     "changedEntities": [
       {
-        "id": "MOJO-123",
-        "label": "MOJO-123: Workflow create loops forever",
+        "id": "TASK-101",
+        "label": "TASK-101: Workflow create loops forever",
         "state": {
           "priority": "P1",
-          "owner": "Evan"
+          "owner": "Alex"
         }
       }
     ],
@@ -185,7 +185,7 @@ Example:
     },
     "outline": [
       "section Triage Queue",
-      "entity MOJO-123 Workflow create loops forever priority=P1 owner=Evan"
+      "entity TASK-101 Workflow create loops forever priority=P1 owner=Alex"
     ]
   },
   "next_step": "Apply the requested changes by editing the artifact or taking the approved external action, then run `interfact poll /path/artifact.html --agent-reply \"...\"`."

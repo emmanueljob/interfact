@@ -112,24 +112,24 @@
       </form>
 
       <article
-        data-interfact-entity-id="MOJO-123"
-        data-interfact-label="MOJO-123: Workflow create loops forever"
+        data-interfact-entity-id="TASK-101"
+        data-interfact-label="TASK-101: Workflow create loops forever"
       >
-        <h2>MOJO-123: Workflow create loops forever</h2>
+        <h2>TASK-101: Workflow create loops forever</h2>
         <p>Current priority: P2. Owner: Workflow Automation.</p>
         <div class="actions">
           <button
             type="button"
             data-interfact-action="issue.approved"
-            data-interfact-entity-id="MOJO-123"
-            data-interfact-label="MOJO-123: Workflow create loops forever"
+            data-interfact-entity-id="TASK-101"
+            data-interfact-label="TASK-101: Workflow create loops forever"
           >
             Approve issue
           </button>
           <button
             class="secondary"
             type="button"
-            onclick='window.interfact.emit({ type:"decision.changed", entityId:"MOJO-123", label:"MOJO-123: Workflow create loops forever", patch:{priority:"P1"} })'
+            onclick='window.interfact.emit({ type:"decision.changed", entityId:"TASK-101", label:"TASK-101: Workflow create loops forever", patch:{priority:"P1"} })'
           >
             Escalate to P1
           </button>

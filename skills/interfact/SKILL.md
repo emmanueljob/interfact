@@ -34,8 +34,8 @@ Use `data-interfact-action` for explicit user actions tied to stable entities.
 <button
   type="button"
   data-interfact-action="issue.approved"
-  data-interfact-entity-id="MOJO-123"
-  data-interfact-label="MOJO-123: Workflow create loops forever"
+  data-interfact-entity-id="TASK-101"
+  data-interfact-label="TASK-101: Workflow create loops forever"
 >
   Approve issue
 </button>
@@ -48,7 +48,7 @@ Use `window.interfact.emit` when the event needs a custom payload.
 ```html
 <button
   type="button"
-  onclick='window.interfact.emit({ type:"decision.changed", entityId:"MOJO-123", label:"MOJO-123: Workflow create loops forever", patch:{priority:"P1"} })'
+  onclick='window.interfact.emit({ type:"decision.changed", entityId:"TASK-101", label:"TASK-101: Workflow create loops forever", patch:{priority:"P1"} })'
 >
   Escalate to P1
 </button>

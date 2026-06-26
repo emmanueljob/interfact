@@ -25,7 +25,7 @@ Native form/action capture:
   </select>
 </form>
 
-<button data-interfact-action="issue.approved" data-interfact-entity-id="MOJO-123">
+<button data-interfact-action="issue.approved" data-interfact-entity-id="TASK-101">
   Approve
 </button>
 ```
@@ -35,7 +35,7 @@ Custom event capture:
 ```js
 window.interfact.emit({
   type: "decision.changed",
-  entityId: "MOJO-123",
+  entityId: "TASK-101",
   patch: { priority: "P1" }
 });
 ```

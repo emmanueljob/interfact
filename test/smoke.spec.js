@@ -133,7 +133,7 @@ test("includes changed entity form state in submitted context", async ({ page, r
 <html>
   <head><title>Entity Form</title></head>
   <body>
-    <section data-interfact-entity-id="MOJO-123" data-interfact-label="Workflow bug">
+    <section data-interfact-entity-id="TASK-101" data-interfact-label="Workflow bug">
       <form data-interfact-event="issue.changed">
         <input name="priority" value="P0">
         <textarea name="summary">Reload gap</textarea>
@@ -167,7 +167,7 @@ test("includes changed entity form state in submitted context", async ({ page, r
 
     expect(feedback.context.changedEntities).toEqual([
       {
-        id: "MOJO-123",
+        id: "TASK-101",
         label: "Workflow bug",
         state: { priority: "P0", summary: "Reload gap" }
       }
@@ -186,15 +186,15 @@ test("batches changed entity contexts for multiple queued forms", async ({ page,
 <html>
   <head><title>Batched Entities</title></head>
   <body>
-    <section data-interfact-entity-id="MOJO-123" data-interfact-label="Reload bug">
+    <section data-interfact-entity-id="TASK-101" data-interfact-label="Reload bug">
       <form data-interfact-event="issue.changed">
         <input name="priority" value="P0">
         <button type="submit">Queue reload change</button>
       </form>
     </section>
-    <section data-interfact-entity-id="MOJO-456" data-interfact-label="Reply bug">
+    <section data-interfact-entity-id="TASK-102" data-interfact-label="Reply bug">
       <form data-interfact-event="issue.changed">
-        <input name="owner" value="Eman">
+        <input name="owner" value="Sam">
         <button type="submit">Queue reply change</button>
       </form>
     </section>
@@ -228,20 +228,20 @@ test("batches changed entity contexts for multiple queued forms", async ({ page,
     expect(feedback.events).toEqual([
       expect.objectContaining({
         type: "issue.changed",
-        entityId: "MOJO-123",
+        entityId: "TASK-101",
         label: "Reload bug",
         data: { priority: "P0" }
       }),
       expect.objectContaining({
         type: "issue.changed",
-        entityId: "MOJO-456",
+        entityId: "TASK-102",
         label: "Reply bug",
-        data: { owner: "Eman" }
+        data: { owner: "Sam" }
       })
     ]);
     expect(feedback.context.changedEntities).toEqual([
-      { id: "MOJO-123", label: "Reload bug", state: { priority: "P0" } },
-      { id: "MOJO-456", label: "Reply bug", state: { owner: "Eman" } }
+      { id: "TASK-101", label: "Reload bug", state: { priority: "P0" } },
+      { id: "TASK-102", label: "Reply bug", state: { owner: "Sam" } }
     ]);
   } finally {
     await closeServer(server);

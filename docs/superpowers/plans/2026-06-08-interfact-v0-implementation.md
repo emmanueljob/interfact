@@ -121,7 +121,7 @@ Native form/action capture:
   </select>
 </form>
 
-<button data-interfact-action="issue.approved" data-interfact-entity-id="MOJO-123">
+<button data-interfact-action="issue.approved" data-interfact-entity-id="TASK-101">
   Approve
 </button>
 ```
@@ -131,7 +131,7 @@ Custom event capture:
 ```js
 window.interfact.emit({
   type: "decision.changed",
-  entityId: "MOJO-123",
+  entityId: "TASK-101",
   patch: { priority: "P1" }
 });
 ```
@@ -510,27 +510,27 @@ test("normalizeClientEvent preserves source of truth fields", () => {
   const event = normalizeClientEvent({
     type: "decision.changed",
     source: "sdk",
-    entityId: "MOJO-123",
-    label: "MOJO-123: Workflow create loops forever",
+    entityId: "TASK-101",
+    label: "TASK-101: Workflow create loops forever",
     patch: { priority: "P1" }
   });
 
   assert.equal(event.type, "decision.changed");
   assert.equal(event.source, "sdk");
-  assert.equal(event.entityId, "MOJO-123");
+  assert.equal(event.entityId, "TASK-101");
   assert.deepEqual(event.patch, { priority: "P1" });
   assert.match(event.at, /^\d{4}-\d{2}-\d{2}T/);
 });
 
 test("normalizeClientContext bounds outline and changed entities", () => {
   const context = normalizeClientContext({
-    title: "Mojo Triage",
+    title: "Issue Triage",
     artifactKind: "triage-board",
-    changedEntities: Array.from({ length: 10 }, (_, index) => ({ id: `MOJO-${index}`, label: `Issue ${index}` })),
+    changedEntities: Array.from({ length: 10 }, (_, index) => ({ id: `TASK-${index}`, label: `Issue ${index}` })),
     outline: Array.from({ length: 80 }, (_, index) => `row ${index}`)
   });
 
-  assert.equal(context.title, "Mojo Triage");
+  assert.equal(context.title, "Issue Triage");
   assert.equal(context.artifactKind, "triage-board");
   assert.equal(context.changedEntities.length, 10);
   assert.equal(context.outline.length, 50);
@@ -1542,8 +1542,8 @@ Use action buttons for discrete decisions:
 ```html
 <button
   data-interfact-action="issue.approved"
-  data-interfact-entity-id="MOJO-123"
-  data-interfact-label="MOJO-123: Workflow create loops forever">
+  data-interfact-entity-id="TASK-101"
+  data-interfact-label="TASK-101: Workflow create loops forever">
   Approve
 </button>
 ```
@@ -1555,8 +1555,8 @@ Use the SDK for richer interactions:
 ```js
 window.interfact.emit({
   type: "decision.changed",
-  entityId: "MOJO-123",
-  label: "MOJO-123: Workflow create loops forever",
+  entityId: "TASK-101",
+  label: "TASK-101: Workflow create loops forever",
   patch: { priority: "P1" }
 });
 ```
@@ -1602,11 +1602,11 @@ Create `examples/triage.html`:
     <button type="submit">Queue filter change</button>
   </form>
 
-  <article data-interfact-entity-id="MOJO-123" data-interfact-label="MOJO-123: Workflow create loops forever">
-    <h2>MOJO-123: Workflow create loops forever</h2>
+  <article data-interfact-entity-id="TASK-101" data-interfact-label="TASK-101: Workflow create loops forever">
+    <h2>TASK-101: Workflow create loops forever</h2>
     <p>Current priority: P2. Owner: unassigned.</p>
-    <button data-interfact-action="issue.approved" data-interfact-entity-id="MOJO-123" data-interfact-label="MOJO-123: Workflow create loops forever">Approve</button>
-    <button onclick="window.interfact.emit({ type: 'decision.changed', entityId: 'MOJO-123', label: 'MOJO-123: Workflow create loops forever', patch: { priority: 'P1' } })">Queue P1 change</button>
+    <button data-interfact-action="issue.approved" data-interfact-entity-id="TASK-101" data-interfact-label="TASK-101: Workflow create loops forever">Approve</button>
+    <button onclick="window.interfact.emit({ type: 'decision.changed', entityId: 'TASK-101', label: 'TASK-101: Workflow create loops forever', patch: { priority: 'P1' } })">Queue P1 change</button>
   </article>
 </body>
 </html>
