@@ -8,7 +8,8 @@ V0 serves a local HTML artifact in a browser shell, injects a small SDK, queues 
 
 ```bash
 interfact open artifact.html
-interfact poll artifact.html
+interfact watch artifact.html   # long-poll until the human sends feedback (preferred)
+interfact poll artifact.html    # single long-poll; returns once
 interfact reply artifact.html "Updated the artifact."
 interfact end artifact.html
 ```
@@ -38,6 +39,16 @@ window.interfact.emit({
   entityId: "TASK-101",
   patch: { priority: "P1" }
 });
+```
+
+Snapshot capture (for boards where only the final state matters — the provider runs once, on Send):
+
+```js
+window.interfact.registerSnapshot(() => ({
+  type: "triage.snapshot",
+  artifactKind: "triage-board",
+  decisions: [{ entityId: "TASK-101", patch: { priority: "P1" } }]
+}));
 ```
 
 ## Try the Example

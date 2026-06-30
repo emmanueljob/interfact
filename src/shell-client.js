@@ -6,6 +6,8 @@
   const chatElement = document.querySelector("#chat");
   const messageForm = document.querySelector("#message");
   const messageInput = messageForm?.querySelector('textarea[name="message"]');
+  const sendButton = messageForm?.querySelector('button[type="submit"]');
+  const sendStatus = document.querySelector("#send-status");
   const endButton = document.querySelector("#end");
   const queued = [];
   let queuedContext = {};
@@ -15,24 +17,39 @@
     if (!artifact?.contentWindow || event.source !== artifact.contentWindow) return;
     if (event.data?.type !== "interfact:events") return;
 
-    if (Array.isArray(event.data.events)) queued.push(...event.data.events);
+    queueEvents(event.data.events);
     queuedContext = mergeContext(queuedContext, event.data.context || {});
     renderQueue();
   });
 
   messageForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    setSendStatus("Collecting current artifact state...");
+    if (sendButton) sendButton.disabled = true;
     const message = messageInput?.value || "";
-    const response = await fetch(`/api/${encodeURIComponent(session.key)}/feedback`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ events: queued, message, context: queuedContext })
-    });
-    if (!response.ok) return;
-    queued.splice(0, queued.length);
-    queuedContext = {};
-    if (messageInput) messageInput.value = "";
-    renderQueue();
+    try {
+      const snapshot = await collectSnapshot();
+      queueEvents(snapshot.events);
+      queuedContext = mergeContext(queuedContext, snapshot.context || {});
+      const response = await fetch(`/api/${encodeURIComponent(session.key)}/feedback`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ events: queued, message, context: queuedContext })
+      });
+      if (!response.ok) {
+        setSendStatus("Send failed. Try again.");
+        return;
+      }
+      queued.splice(0, queued.length);
+      queuedContext = {};
+      if (messageInput) messageInput.value = "";
+      renderQueue();
+      setSendStatus("Sent to agent. Waiting for an active poll.");
+    } catch {
+      setSendStatus("Send failed. Try again.");
+    } finally {
+      if (sendButton) sendButton.disabled = false;
+    }
   });
 
   endButton?.addEventListener("click", async () => {
@@ -59,6 +76,55 @@
       return;
     }
     queueElement.innerHTML = `<ol>${queued.map(renderEvent).join("")}</ol>`;
+  }
+
+  function queueEvents(events) {
+    for (const event of safeArray(events)) {
+      const key = snapshotEventKey(event);
+      if (key) {
+        for (let index = queued.length - 1; index >= 0; index -= 1) {
+          if (snapshotEventKey(queued[index]) === key) queued.splice(index, 1);
+        }
+      }
+      queued.push(event);
+    }
+  }
+
+  function snapshotEventKey(event) {
+    if (!event || typeof event !== "object") return "";
+    if (event.source !== "snapshot" && !String(event.type || "").endsWith(".snapshot")) return "";
+    return `${event.type || ""}:${event.artifactKind || ""}`;
+  }
+
+  function setSendStatus(message) {
+    if (!sendStatus) return;
+    sendStatus.textContent = message;
+  }
+
+  function collectSnapshot() {
+    if (!artifact?.contentWindow) return Promise.resolve({ events: [], context: {} });
+    const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        window.removeEventListener("message", onMessage);
+        resolve({ events: [], context: {} });
+      }, 250);
+
+      function onMessage(event) {
+        if (event.source !== artifact.contentWindow) return;
+        if (event.data?.type !== "interfact:snapshot") return;
+        if (event.data.requestId !== requestId) return;
+        clearTimeout(timeout);
+        window.removeEventListener("message", onMessage);
+        resolve({
+          events: Array.isArray(event.data.events) ? event.data.events : [],
+          context: event.data.context || {}
+        });
+      }
+
+      window.addEventListener("message", onMessage);
+      artifact.contentWindow.postMessage({ type: "interfact:collect-snapshot", requestId }, "*");
+    });
   }
 
   function renderEvent(event) {

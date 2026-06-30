@@ -19,6 +19,20 @@ test("normalizeClientEvent preserves source of truth fields", () => {
   assert.match(event.at, /^\d{4}-\d{2}-\d{2}T/);
 });
 
+test("normalizeClientEvent preserves snapshot payload fields", () => {
+  const event = normalizeClientEvent({
+    type: "jira.triage.snapshot",
+    source: "snapshot",
+    artifactKind: "snapshot-triage",
+    decisions: [{ key: "TASK-1", decision: "assign", notes: "Give this to Alex" }]
+  });
+
+  assert.equal(event.type, "jira.triage.snapshot");
+  assert.equal(event.source, "snapshot");
+  assert.equal(event.artifactKind, "snapshot-triage");
+  assert.deepEqual(event.decisions, [{ key: "TASK-1", decision: "assign", notes: "Give this to Alex" }]);
+});
+
 test("normalizeClientContext bounds outline and changed entities", () => {
   const context = normalizeClientContext({
     title: "Issue Triage",

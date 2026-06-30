@@ -45,23 +45,22 @@ This is the core workflow. You drive it entirely from the shell.
 1. **Write or edit `artifact.html`** — you own the HTML (see *Authoring* below).
 2. **`interfact open artifact.html`** — serves the artifact in a browser shell and opens it. Pass `--no-open` to skip launching a browser (e.g. headless/CI).
 3. **The human works in the page** and clicks **Send to Agent** in the shell when ready.
-4. **`interfact poll artifact.html`** — blocks until the human sends feedback (or the timeout elapses), then prints their events + context as JSON.
-5. **You act** — edit `artifact.html` to reflect changes, take whatever external action they approved, and optionally reply in the sidebar with `--agent-reply` (or `interfact reply`).
-6. **Poll again** — repeat until done.
+4. **`interfact watch artifact.html`** — blocks and keeps long-polling until the human sends feedback, then prints their events + context as JSON. (Prefer `watch` over a single `poll` — a lone poll that times out empty makes the UI feel like Send did nothing.)
+5. **You act** — edit `artifact.html` to reflect changes, take whatever external action they approved, and optionally reply in the sidebar with `interfact reply` (or `poll --agent-reply`).
+6. **Watch again** — repeat until done.
 7. **`interfact end artifact.html`** — close the session.
 
 ```bash
 interfact open artifact.html
-interfact poll artifact.html
-interfact poll artifact.html --agent-reply "Bumped TASK-101 to P1 and updated the board."
-interfact reply artifact.html "Standalone sidebar message."
+interfact watch artifact.html
+interfact reply artifact.html "Bumped TASK-101 to P1 and updated the board."
 interfact end artifact.html
 ```
 
-### poll options
+### watch vs. poll
 
-- `--agent-reply "..."` — post a sidebar reply *before* waiting for the next batch. Use this to acknowledge what you just did in the same call that waits for what's next.
-- `--timeout-ms N` — how long to block (default 30000). The call returns even with no feedback when the timeout elapses; poll again to keep waiting.
+- **`watch`** — long-polls in a loop, suppressing empty `waiting` ticks, and prints only when real feedback arrives. This is the default way to wait for a human. `--timeout-ms N` sets the per-poll block (default 300000).
+- **`poll`** — a single long-poll that returns once (with feedback, or `status: "waiting"` on timeout). Use it for one-shot checks or when you want to drive the loop yourself. `--agent-reply "..."` posts a sidebar reply before waiting; `--timeout-ms N` sets the block (default 30000).
 
 ### Reading the poll payload
 
@@ -152,6 +151,32 @@ You can also group an entity's controls under a container so changes are attribu
   ...controls...
 </article>
 ```
+
+### Snapshot mode (recommended for multi-entity boards)
+
+`emit` is a stream of *gestures* — good for "the human clicked Approve on TASK-101." But when the artifact is a **board where only the final state matters** (a triage list where the human sets priorities, changes their mind, leaves notes across many rows), use **snapshot mode** instead: register one function that returns the *current* decision for every changed row, and the shell calls it once when the human clicks **Send to Agent**.
+
+```html
+<script>
+  window.addEventListener("load", () => {
+    if (!window.interfact?.registerSnapshot) return; // older runtime → fall back to emit()
+    window.interfact.registerSnapshot(() => ({
+      type: "triage.snapshot",
+      artifactKind: "triage-board",
+      decisions: collectDecisions()   // [{ entityId, label, patch:{...} }, ...] — your current state
+    }));
+  });
+</script>
+```
+
+How it behaves:
+
+- The provider runs **on Send**, so it always reflects the latest UI — no need to re-emit on every change, no duplicate events to dedupe.
+- The shell delivers one event whose `type` ends in `.snapshot` (or `source: "snapshot"`); on resend it **replaces** the prior snapshot rather than appending. Your `decisions` array rides through to the poll payload intact.
+- Guard with `if (window.interfact?.registerSnapshot)` so the file still works on older runtimes (and opens cleanly as a plain file).
+- Whitelisted snapshot fields that survive to the agent: `type, entityId, label, action, artifactKind, decisions, data, patch, target`. Put anything else inside `data`.
+
+Use `emit` for one-off actions; use `registerSnapshot` for "here is my whole board."
 
 ### Authoring guidance
 

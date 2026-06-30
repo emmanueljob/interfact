@@ -13,6 +13,7 @@ test("cli help lists core commands", async () => {
 
   assert.match(stdout, /interfact open/);
   assert.match(stdout, /interfact poll/);
+  assert.match(stdout, /interfact watch/);
 });
 
 test("cli runs when invoked through a symlinked bin", async () => {
@@ -24,4 +25,5 @@ test("cli runs when invoked through a symlinked bin", async () => {
 
   assert.match(stdout, /interfact open/);
   assert.match(stdout, /interfact poll/);
+  assert.match(stdout, /interfact watch/);
 });

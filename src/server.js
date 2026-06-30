@@ -293,6 +293,7 @@ export function createShellHtml(session) {
       <form id="message">
         <textarea name="message"></textarea>
         <button type="submit">Send to Agent</button>
+        <p id="send-status" role="status" aria-live="polite"></p>
       </form>
       <button id="end" type="button">End</button>
     </aside>
