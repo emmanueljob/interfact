@@ -1,5 +1,6 @@
 export function createArtifactSdk() {
   const queued = [];
+  let snapshotProvider = null;
 
   function snapshot(sourceElement, eventData) {
     const root = document.documentElement;
@@ -21,6 +22,13 @@ export function createArtifactSdk() {
 
   function emit(event) {
     return emitEvent(event);
+  }
+
+  function registerSnapshot(provider) {
+    if (typeof provider !== "function") {
+      throw new TypeError("window.interfact.registerSnapshot requires a function");
+    }
+    snapshotProvider = provider;
   }
 
   function emitEvent(event, sourceElement) {
@@ -127,6 +135,27 @@ export function createArtifactSdk() {
     }, action);
   });
 
-  window.interfact = { emit, snapshot };
+  window.addEventListener("message", async (event) => {
+    if (event.data?.type !== "interfact:collect-snapshot") return;
+    const requestId = event.data.requestId || "";
+    const events = await snapshotEvents();
+    window.parent?.postMessage(
+      { type: "interfact:snapshot", requestId, events, context: snapshot(null, events[0]) },
+      "*"
+    );
+  });
+
+  async function snapshotEvents() {
+    if (!snapshotProvider) return [];
+    const value = await snapshotProvider();
+    const values = Array.isArray(value) ? value : [value];
+    return values.filter(Boolean).map((event) => {
+      const payload = event && typeof event === "object" ? Object.assign({}, event) : { type: event };
+      payload.source = payload.source || "snapshot";
+      return normalizeEvent(payload);
+    });
+  }
+
+  window.interfact = { emit, snapshot, registerSnapshot };
   return window.interfact;
 }

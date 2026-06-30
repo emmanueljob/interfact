@@ -7,6 +7,8 @@ export function normalizeClientEvent(event) {
   for (const key of ["entityId", "label", "action"]) {
     if (event?.[key] !== undefined) normalized[key] = String(event[key]);
   }
+  if (event?.artifactKind !== undefined) normalized.artifactKind = String(event.artifactKind);
+  if (event?.decisions !== undefined) normalized.decisions = clonePlainObjectArray(event.decisions, 200);
   for (const key of ["data", "patch", "target"]) {
     if (event?.[key] !== undefined) normalized[key] = clonePlainObject(event[key]);
   }
@@ -34,4 +36,9 @@ function normalizeArray(value, limit) {
 function clonePlainObject(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return JSON.parse(JSON.stringify(value));
+}
+
+function clonePlainObjectArray(value, limit) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, limit).map(clonePlainObject);
 }

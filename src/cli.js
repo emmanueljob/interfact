@@ -15,6 +15,7 @@ const HELP = `Usage: interfact <command> [options]
 Commands:
   interfact open <html-file> [--no-open]
   interfact poll <html-file> [--agent-reply "..."] [--timeout-ms N]
+  interfact watch <html-file> [--timeout-ms N]
   interfact reply <html-file> "message"
   interfact end <html-file>
   interfact server
@@ -46,6 +47,11 @@ async function main(argv = process.argv.slice(2)) {
     return;
   }
 
+  if (command === "watch") {
+    await runWatch(args);
+    return;
+  }
+
   if (command === "reply") {
     await runReply(args);
     return;
@@ -71,7 +77,7 @@ async function runOpen(args) {
 
   printJson({
     session,
-    next_step: `Run interfact poll ${JSON.stringify(file)} to wait for feedback.`
+    next_step: `Run interfact watch ${JSON.stringify(file)} to wait for feedback.`
   });
 }
 
@@ -90,6 +96,23 @@ async function runPoll(args) {
   url.searchParams.set("file", file);
   url.searchParams.set("timeoutMs", timeoutMs);
   printJson(await getJson(url));
+}
+
+async function runWatch(args) {
+  const { values, options } = parseArgs(args, new Set(), new Set(["timeout-ms"]));
+  const file = await canonicalHtmlFile(values[0]);
+  const baseUrl = await ensureServer();
+  const timeoutMs = options.get("timeout-ms") ?? "300000";
+
+  while (true) {
+    const url = new URL("/api/poll", baseUrl);
+    url.searchParams.set("file", file);
+    url.searchParams.set("timeoutMs", timeoutMs);
+    const response = await getJson(url);
+    if (response.status !== "waiting") {
+      printJson(response);
+    }
+  }
 }
 
 async function runReply(args) {

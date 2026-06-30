@@ -1,11 +1,13 @@
 import crypto from "node:crypto";
 import path from "node:path";
-import { open, readFile, realpath, rename, unlink, writeFile } from "node:fs/promises";
+import { open, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { normalizeClientContext, normalizeClientEvent } from "./context.js";
 
 const SKIP_WRITE = Symbol("skipWrite");
+const STATE_LOCK_RETRY_MS = 10;
+const STATE_LOCK_STALE_MS = 30_000;
 
 export class SessionStore {
   constructor(file) {
@@ -173,9 +175,27 @@ async function acquireStateFileLock(lockFile) {
       return await open(lockFile, "wx");
     } catch (error) {
       if (error?.code !== "EEXIST") throw error;
-      await delay(10);
+      if (await removeStaleStateFileLock(lockFile)) continue;
+      await delay(STATE_LOCK_RETRY_MS);
     }
   }
+}
+
+async function removeStaleStateFileLock(lockFile) {
+  let lockStats;
+  try {
+    lockStats = await stat(lockFile);
+  } catch (error) {
+    if (error?.code === "ENOENT") return true;
+    throw error;
+  }
+
+  if (Date.now() - lockStats.mtimeMs < STATE_LOCK_STALE_MS) return false;
+
+  await unlink(lockFile).catch((error) => {
+    if (error?.code !== "ENOENT") throw error;
+  });
+  return true;
 }
 
 function skipWrite(value) {

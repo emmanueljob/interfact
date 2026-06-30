@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, realpath, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, stat, symlink, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -130,6 +130,23 @@ test("concurrent queueFeedback calls across store instances preserve all events 
       .sort(),
     ["Select row 2", "Use the P1 filter"]
   );
+});
+
+test("upsertSession recovers from a stale state lock", { timeout: 1000 }, async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "interfact-store-"));
+  const artifact = path.join(dir, "artifact.html");
+  const stateFile = path.join(dir, "state.json");
+  const lockFile = `${stateFile}.lock`;
+  await writeFile(artifact, "<!doctype html>");
+  await writeFile(lockFile, "");
+  const staleTime = new Date(Date.now() - 60_000);
+  await utimes(lockFile, staleTime, staleTime);
+  const store = new SessionStore(stateFile);
+
+  const session = await store.upsertSession(artifact, "http://127.0.0.1:4397/session/key");
+
+  assert.equal(session.status, "open");
+  await assert.rejects(stat(lockFile), { code: "ENOENT" });
 });
 
 test("reply and end update session state", async () => {
